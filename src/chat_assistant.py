@@ -1,5 +1,6 @@
 import openai
 import os
+import subprocess
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -24,7 +25,6 @@ def chat_with_gpt(messages):
             model="gpt-4o-mini",
             messages=messages,
             temperature=0.7,
-            max_tokens=100,
         )
         # Extract and return the assistant's reply
         return response["choices"][0]["message"]["content"]
@@ -42,13 +42,12 @@ def sanitize_code(code):
     """
     lines = code.splitlines()
     sanitized_lines = []
-
     for line in lines:
         # Ignore any lines starting with "```" or "python"
-        if line.strip().startswith("```") or line.strip().startswith("python"):
+        if line.strip().startswith("```python") or \
+           line.strip().startswith("```"):
             continue
         sanitized_lines.append(line)
-
     # Return the cleaned code
     return "\n".join(sanitized_lines).strip()
 
@@ -70,17 +69,25 @@ if __name__ == "__main__":
         conversation.append({"role": "user", "content": user_input})
 
         # Get GPT's response
-        gpt_response = chat_with_gpt(conversation)
-
+        gpt_response = chat_with_gpt(conversation)     
         # Add GPT's response to conversation
         conversation.append({"role": "assistant", "content": gpt_response})
 
         # Sanitize the code and write it to a file
         sanitized_code = sanitize_code(gpt_response)
         try:
-            with open("generatedcode.py", "w") as file:
+            # Ensure the src directory exists
+            os.makedirs("src", exist_ok=True)
+            with open("src/generatedcode.py", "w") as file:
                 file.write(sanitized_code)
 
             print("\nGenerated code has been saved to 'generatedcode.py'.")
-        except Exception as e:
+
+            # Run the generatedcode.py file directly in the current terminal
+            subprocess.run(["python", "src/generatedcode.py"], check=True)
+
+        except subprocess.CalledProcessError as e:
             print(f"Error while running the generated code: {e}")
+
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")

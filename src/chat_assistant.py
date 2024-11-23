@@ -23,13 +23,34 @@ def chat_with_gpt(messages):
         response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.7,  # Adjust creativity level
-            max_tokens=100,  # Adjust response length
+            temperature=0.7,
+            max_tokens=100,
         )
         # Extract and return the assistant's reply
         return response["choices"][0]["message"]["content"]
     except Exception as e:
         return f"An error occurred: {str(e)}"
+
+
+def sanitize_code(code):
+    """
+    Cleans the code response to remove invalid headers, footers, or extra text.
+    Args:
+        code (str): The raw response from the API.
+    Returns:
+        str: Sanitized Python code ready to run.
+    """
+    lines = code.splitlines()
+    sanitized_lines = []
+
+    for line in lines:
+        # Ignore any lines starting with "```" or "python"
+        if line.strip().startswith("```") or line.strip().startswith("python"):
+            continue
+        sanitized_lines.append(line)
+
+    # Return the cleaned code
+    return "\n".join(sanitized_lines).strip()
 
 
 if __name__ == "__main__":
@@ -54,5 +75,12 @@ if __name__ == "__main__":
         # Add GPT's response to conversation
         conversation.append({"role": "assistant", "content": gpt_response})
 
-        # Print GPT's response
-        print(f"GPT: {gpt_response}")
+        # Sanitize the code and write it to a file
+        sanitized_code = sanitize_code(gpt_response)
+        try:
+            with open("generatedcode.py", "w") as file:
+                file.write(sanitized_code)
+
+            print("\nGenerated code has been saved to 'generatedcode.py'.")
+        except Exception as e:
+            print(f"Error while running the generated code: {e}")

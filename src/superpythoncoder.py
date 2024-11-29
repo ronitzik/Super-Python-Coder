@@ -39,6 +39,7 @@ def chat_with_gpt(conversation):
         response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=conversation,
+            seed=42,
         )
         return response["choices"][0]["message"]["content"]
     except Exception as e:
@@ -124,21 +125,18 @@ def fix_lint_issues(prompt, code, lint_errors):
             "content": f"""
 The above code has the following lint errors/warnings:
 {lint_errors}
-Please fix these issues while maintaining the functionality of the code. 
-Ensure the corrected code adheres to the following:
-1. Achieves a pylint score of **10.00/10**.
-2. Follows PEP8 standards, including:
-   - Proper indentation.
-   - Line length not exceeding 100 characters.
-   - Consistent naming conventions for variables, functions, and classes.
-3. Includes a module-level docstring summarizing the script's purpose.
-4. Avoids unused imports or variables.
-5. Ensures all functions have clear, concise docstrings.
-6. Removes redundant code or unused variables.
-7. The last line in a file should contain a newline.
-8. The file shouldn't have trailing blank lines.
-Make sure the code is error-free, concise, and does not introduce new issues. 
-The response should only contain the corrected Python code as plain text, without any explanations or additional text.
+Fix the code while preserving functionality, ensuring it meets the following:
+Pylint score: 10/10.
+Adherence to PEP8:
+Indentation.
+Max line length: 100 characters.
+Consistent naming.
+Include a module docstring summarizing the script.
+Remove unused imports/variables.
+Add concise docstrings for functions.
+Remove redundancy.
+File ends with a newline and no trailing blank lines.
+Return only the corrected Python code as plain text.
 """,
         },
     ]
@@ -258,6 +256,9 @@ def generate_code(prompt):
         },
         {"role": "user", "content": prompt},
     ]
+    
+    game_opened = False # Flag to ensure the game is opened only once
+     
     for attempt in range(5):
         print(Fore.YELLOW + f"Attempt {attempt + 1} to generate code...")
         gpt_response = chat_with_gpt(conversation)
@@ -308,15 +309,19 @@ def generate_code(prompt):
             if optimized_code and optimized_time and optimized_time < original_time:
                 with open(new_program_path, "w") as f:
                     f.write(optimized_code)
+                    print(Fore.GREEN + f"Optimized code saved at {new_program_path}")
+                if not game_opened:
                     print(Fore.YELLOW + "Running the optimized program locally...")
                     os.startfile(new_program_path)
-                    print(Fore.GREEN + f"Optimized code saved at {new_program_path}")
+                    game_opened = True
             elif optimization_error:
                 print(Fore.RED + f"Optimization failed: {optimization_error}")
             else:
                 print(Fore.YELLOW + "Optimization did not improve execution time.")
-                print(Fore.YELLOW + "Running the original program locally...")
-                os.startfile(new_program_path)
+                if not game_opened:
+                    print(Fore.YELLOW + "Running the original program locally...")
+                    os.startfile(new_program_path)
+                    game_opened = True
 
             return True
         else:
@@ -332,20 +337,14 @@ def generate_code(prompt):
                     \n\n{error_message}\n\n
                     Please carefully review and regenerate the code.
                     Ensure that:
-                    1. The function is complete, error-free,
-                    and handles all possible edge cases.
-                    2. The logic is correct and tested thoroughly with
-                    valid unit unique (input and output) tests.
-                    3. The response only contains the corrected Python code
-                    without explanations or additional text.
-                    4. At least logic 10 unit tests
-                    are included, covering edge cases, normal cases,
-                    and boundary conditions. 
-                    5. The function and tests are self-contained and can be
-                    directly executed without further modifications.
-                    Regenerate the code with these requirements strictly
-                    followed. Begin the response with the function definition
-                    (e.g., def <function_name>:).""",
+Review and regenerate the code, ensuring:
+The function is complete, error-free, and handles all edge cases.
+Logic is correct, tested with 10+ unit tests covering:
+Edge cases
+Boundary conditions
+Response includes only the Python code as a plain text.
+The function and tests are self-contained and executable without modification.
+Begin with def <function_name>:""",
                 }
             )
     print("Code generation FAILED after 5 attempts.")
@@ -374,19 +373,13 @@ Type 'exit' to quit."""
         please write a Python program (in plain text only, without using code
         blocks) to accomplish the following task:
         {user_input}
-        Ensure the following requirements are met:
-        1. The program is complete, error-free, and fully functional.
-        2. Include a minimum of 10 unit tests using assertions (assert)
-        to validate the logic of the program.
-        3. The unit tests should cover:
-        - each test should has a unique input and ouput.
-        - Standard use cases.
-        - Edge cases and boundary conditions.
-        - Any special cases that could arise from the problem's constraints.
-        4. Provide the Python code only, without explanations, comments,
-        or examples.
-        5. Begin the response with the function definition (e.g.,
-        def <function_name>:), and ensure the function works as described.
+Ensure the program meets the following:
+Complete, error-free, fully functional.
+10+ unit tests with assert to validate logic, covering:
+Unique input/output for each test.
+Standard, edge, boundary, and special cases.
+Provide only Python code without explanations or comments.
+Begin with def <function_name>:
         """
         generate_code(prompt)
 

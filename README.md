@@ -16,10 +16,7 @@ Super Python Coder is a Python-based application designed to assist developers i
    - git clone https://github.com/yourusername/Super-Python-Coder.git
    - cd Super-Python-Coder
 
-2. Install required dependencies:
-   - pip install -r requirements.txt
-
-3. Set up environment variables:
+2. Set up environment variables:
    - Create a .env file in the project directory.
    - Add your OpenAI API key to the file
 

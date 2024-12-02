@@ -40,6 +40,7 @@ def chat_with_gpt(conversation):
             model="gpt-4o-mini",
             messages=conversation,
             seed=42,
+            temperature=0.7
         )
         return response["choices"][0]["message"]["content"]
     except Exception as e:
@@ -116,7 +117,7 @@ def fix_lint_issues(prompt, code, lint_errors):
     conversation = [
         {
             "role": "system",
-            "content": "You are a helpful assistant who fixes Python code lint issues.",
+            "content": "You are a Python coding assistant specialized in fixing Pylint issues.",
         },
         {"role": "user", "content": prompt},
         {"role": "assistant", "content": code},
@@ -146,6 +147,7 @@ Return only the corrected Python code as plain text.
 
 def process_lint(file_path, prompt, code, max_attempts=3):
     """Attempts to fix lint issues in the given code up to the specified number of attempts."""
+    previous_lint_errors = None
     for attempt in range(max_attempts):
         print(Fore.YELLOW + f"Attempt {attempt + 1} to fix lint issues...")
         lint_success, lint_errors = check_lint(file_path)
@@ -153,17 +155,27 @@ def process_lint(file_path, prompt, code, max_attempts=3):
             print(Fore.GREEN + "Lint issues resolved successfully!")
             return True
 
-        fixed_code = fix_lint_issues(prompt, code, lint_errors)
+        # Append previous errors to the current errors for the next iteration
+        combined_lint_errors = (
+            f"Previous errors:\n{previous_lint_errors}\n\nCurrent errors:\n{lint_errors}"
+            if previous_lint_errors
+            else lint_errors
+        )
+
+        fixed_code = fix_lint_issues(prompt, code, combined_lint_errors)
         is_valid, validation_error = validate_code(fixed_code)
         if not is_valid:
             print(Fore.RED + f"Fixed code failed validation: {validation_error}")
+            previous_lint_errors = combined_lint_errors
             continue
 
+        # Write the fixed code back to the file
         with open(file_path, "w") as f:
             f.write(fixed_code)
         code = fixed_code
+        previous_lint_errors = lint_errors
 
-    print(Fore.RED + "Maximum attempts reached. Lint issues remain.")
+    print(Fore.RED + "Maximum attempts reached. Lint issues remain unresolved.")
     return False
 
 
@@ -256,8 +268,6 @@ def generate_code(prompt):
         },
         {"role": "user", "content": prompt},
     ]
-    
-    game_opened = False # Flag to ensure the game is opened only once
      
     for attempt in range(5):
         print(Fore.YELLOW + f"Attempt {attempt + 1} to generate code...")
@@ -310,19 +320,16 @@ def generate_code(prompt):
                 with open(new_program_path, "w") as f:
                     f.write(optimized_code)
                     print(Fore.GREEN + f"Optimized code saved at {new_program_path}")
-                if not game_opened:
-                    print(Fore.YELLOW + "Running the optimized program locally...")
-                    os.startfile(new_program_path)
-                    game_opened = True
             elif optimization_error:
                 print(Fore.RED + f"Optimization failed: {optimization_error}")
             else:
                 print(Fore.YELLOW + "Optimization did not improve execution time.")
-                if not game_opened:
-                    print(Fore.YELLOW + "Running the original program locally...")
-                    os.startfile(new_program_path)
-                    game_opened = True
-
+            
+            # Open the program at the end of the process
+            print(Fore.YELLOW + "Running the final program locally...")
+            subprocess.run(["python", new_program_path], check=True)
+            os.startfile(new_program_path)
+           
             return True
         else:
             print(f"Unit tests failed: {error_message}.")
@@ -378,7 +385,6 @@ Complete, error-free, fully functional.
 10+ unit tests with assert to validate logic, covering:
 Unique input/output for each test.
 Standard, edge, boundary, and special cases.
-Provide only Python code without explanations or comments.
 Begin with def <function_name>:
         """
         generate_code(prompt)
